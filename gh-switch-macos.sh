@@ -24,7 +24,7 @@ check_prerequisites() {
         echo "  - Or download from: https://git-scm.com/download/mac"
         exit 1
     fi
-    
+
     # Check for jq
     if ! command -v jq &> /dev/null; then
         echo -e "${RED}Error: This script requires 'jq' to be installed${NC}"
@@ -32,7 +32,7 @@ check_prerequisites() {
         echo "  - Install via Homebrew: brew install jq"
         exit 1
     fi
-    
+
     # Check for GPG if we plan to use signing
     if [ "$1" = "check-gpg" ]; then
         if ! command -v gpg &> /dev/null; then
@@ -42,7 +42,7 @@ check_prerequisites() {
             # Continue without exit since GPG is optional
         fi
     fi
-    
+
     # Check for homebrew (optional)
     if ! command -v brew &> /dev/null; then
         echo -e "${YELLOW}Note: Homebrew is not installed. It's recommended for managing packages on macOS.${NC}"
@@ -60,7 +60,7 @@ init_config() {
         echo "{}" > "$PROFILES_FILE"
         echo -e "${GREEN}Created new profiles file at $PROFILES_FILE${NC}"
     fi
-    
+
     # Ensure the profiles file is valid JSON
     if ! jq empty "$PROFILES_FILE" 2>/dev/null; then
         echo -e "${RED}Error: Profiles file is corrupted${NC}"
@@ -120,10 +120,10 @@ add_profile() {
     name="$1"
     email="$2"
     gpg_key=""
-    
+
     if [ $# -ge 3 ]; then
         gpg_key="$3"
-        
+
         # Verify GPG key exists if provided
         if ! gpg --list-keys "$gpg_key" &>/dev/null; then
             echo -e "${YELLOW}Warning: GPG key '$gpg_key' not found in your keyring${NC}"
@@ -136,36 +136,36 @@ add_profile() {
             fi
         fi
     fi
-    
+
     # Validate email
     validate_email "$email" || return 1
-    
+
     # Check if profile already exists
     if jq -e ".\"$name\"" "$PROFILES_FILE" > /dev/null 2>&1; then
         echo -e "${YELLOW}Profile '$name' already exists. Updating...${NC}"
     fi
-    
+
     # Add profile to profiles.json
     if ! jq --arg name "$name" --arg email "$email" --arg gpg "$gpg_key" \
        '.[$name] = {"email": $email, "gpg_key": $gpg}' "$PROFILES_FILE" > "$CONFIG_DIR/temp.json"; then
         echo -e "${RED}Error: Failed to update profile file${NC}"
         return 1
     fi
-    
+
     if ! mv "$CONFIG_DIR/temp.json" "$PROFILES_FILE"; then
         echo -e "${RED}Error: Failed to save profile file${NC}"
         return 1
     fi
-    
+
     echo -e "${GREEN}Profile '$name' added/updated with email '$email'${NC}"
-    
+
     # Offer to switch to this profile
     echo -e "${YELLOW}Would you like to switch to this profile now? (y/N)${NC}"
     read -r response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         switch_profile "$name"
     fi
-    
+
     return 0
 }
 
@@ -178,29 +178,29 @@ switch_profile() {
     fi
 
     name="$1"
-    
+
     # Check if profile exists
     if ! jq -e ".\"$name\"" "$PROFILES_FILE" > /dev/null 2>&1; then
         echo -e "${RED}Error: Profile '$name' does not exist${NC}"
         echo "Use 'gh-switch list' to see available profiles"
         return 1
     fi
-    
+
     # Get profile details
     email=$(jq -r ".\"$name\".email" "$PROFILES_FILE")
     gpg_key=$(jq -r ".\"$name\".gpg_key" "$PROFILES_FILE")
-    
+
     # Update git config
     if ! git config --global user.email "$email"; then
         echo -e "${RED}Error: Failed to update git email configuration${NC}"
         return 1
     fi
     echo -e "${GREEN}Switched to profile '$name' with email '$email'${NC}"
-    
+
     # Update GPG key if provided
     if [ -n "$gpg_key" ] && [ "$gpg_key" != "null" ]; then
         check_prerequisites "check-gpg"
-        
+
         # Check if pinentry-mac is configured
         if [ -f "$HOME/.gnupg/gpg-agent.conf" ]; then
             if ! grep -q "pinentry-program" "$HOME/.gnupg/gpg-agent.conf"; then
@@ -220,19 +220,19 @@ switch_profile() {
                 echo -e "${GREEN}Created and configured gpg-agent.conf with pinentry-mac${NC}"
             fi
         fi
-        
+
         # Verify the key again before configuring
         if ! gpg --list-keys "$gpg_key" &>/dev/null; then
             echo -e "${YELLOW}Warning: GPG key '$gpg_key' not found in your keyring${NC}"
             echo "Commit signing may not work until you import the key."
         fi
-        
+
         if ! git config --global user.signingkey "$gpg_key"; then
             echo -e "${RED}Error: Failed to configure GPG signing key${NC}"
         else
             echo -e "${GREEN}Configured GPG signing with key '$gpg_key'${NC}"
         fi
-        
+
         if ! git config --global commit.gpgsign true; then
             echo -e "${RED}Error: Failed to enable GPG signing${NC}"
         else
@@ -254,10 +254,10 @@ switch_profile() {
             fi
         fi
     fi
-    
+
     # Save current profile
     echo "$name" > "$CURRENT_PROFILE_FILE"
-    
+
     # macOS-specific: Update SSH config if needed
     if [ -f "$HOME/.ssh/config" ]; then
         echo -e "${YELLOW}Note: You may need to update your SSH config manually for different GitHub accounts${NC}"
@@ -268,17 +268,18 @@ switch_profile() {
         echo "    IdentityFile ~/.ssh/id_${name}"
         echo "    UseKeychain yes"
         echo "    AddKeysToAgent yes"
+        echo "    ${GREEN}Ignore this message if you have already correctly set up the config${NC}"
     fi
-    
+
     # Check for existing credentials in Keychain
     echo -e "${YELLOW}Note: You may need to update credentials in Keychain Access${NC}"
     echo "Look for 'github.com' entries in your login keychain"
-    
+
     # Check credential helper
     cred_helper=$(git config --global --get credential.helper)
     if [ -n "$cred_helper" ]; then
         echo -e "${YELLOW}Credential helper detected: $cred_helper${NC}"
-        
+
         if [[ "$cred_helper" == *"osxkeychain"* ]]; then
             echo -e "${YELLOW}You're using macOS Keychain for Git credentials.${NC}"
             echo "To manage stored credentials:"
@@ -290,38 +291,38 @@ switch_profile() {
         echo -e "${YELLOW}No credential helper configured. Consider adding:${NC}"
         echo "git config --global credential.helper osxkeychain"
     fi
-    
+
     # Check for SSH key in keychain
     # Suggest adding it with --apple-use-keychain flag (macOS specific)
     echo -e "${YELLOW}Tip: Add your SSH key to keychain with:${NC}"
     echo "ssh-add --apple-use-keychain ~/.ssh/id_${name}"
-    
+
     # Remind about GitHub CLI authentication if installed
     if command -v gh &> /dev/null; then
         echo -e "${YELLOW}Note: If you use GitHub CLI, you'll need to run 'gh auth login' with the new account${NC}"
     fi
-    
+
     return 0
 }
 
 # Function to list all profiles
 list_profiles() {
     echo -e "${BLUE}Available GitHub profiles:${NC}"
-    
+
     # Check if profiles file exists and is not empty
     if [ ! -f "$PROFILES_FILE" ] || [ ! -s "$PROFILES_FILE" ]; then
         echo -e "${YELLOW}No profiles found. Add one with 'gh-switch add <name> <email>'${NC}"
         return 0
     fi
-    
+
     # Get current profile if exists
     current_profile=""
     if [ -f "$CURRENT_PROFILE_FILE" ]; then
         current_profile=$(cat "$CURRENT_PROFILE_FILE")
     fi
-    
+
     # List all profiles
-    if ! jq -r 'to_entries | .[] | "\(.key) (\(.value.email))" + if .value.gpg_key != null and .value.gpg_key != "" then " [GPG: \(.value.gpg_key)]" else "" end' "$PROFILES_FILE" 2>/dev/null | 
+    if ! jq -r 'to_entries | .[] | "\(.key) (\(.value.email))" + if .value.gpg_key != null and .value.gpg_key != "" then " [GPG: \(.value.gpg_key)]" else "" end' "$PROFILES_FILE" 2>/dev/null |
     while read -r line; do
         profile_name=$(echo "$line" | cut -d' ' -f1)
         if [ "$profile_name" = "$current_profile" ]; then
@@ -333,12 +334,12 @@ list_profiles() {
         echo -e "${RED}Error: Failed to parse profiles${NC}"
         return 1
     fi
-    
+
     # Check if no profiles were listed
     if [ "$(jq 'length' "$PROFILES_FILE")" -eq 0 ]; then
         echo -e "${YELLOW}No profiles found. Add one with 'gh-switch add <name> <email>'${NC}"
     fi
-    
+
     return 0
 }
 
@@ -349,35 +350,35 @@ show_current_profile() {
         echo "Use 'gh-switch switch <name>' to select a profile"
         return 0
     fi
-    
+
     current_profile=$(cat "$CURRENT_PROFILE_FILE")
     if ! jq -e ".\"$current_profile\"" "$PROFILES_FILE" > /dev/null 2>&1; then
         echo -e "${RED}Error: Current profile '$current_profile' no longer exists in profiles list${NC}"
         echo "Use 'gh-switch list' to see available profiles"
         return 1
     fi
-    
+
     email=$(jq -r ".\"$current_profile\".email" "$PROFILES_FILE")
     gpg_key=$(jq -r ".\"$current_profile\".gpg_key" "$PROFILES_FILE")
-    
+
     echo -e "${GREEN}Current profile: $current_profile${NC}"
     echo -e "Email: $email"
     if [ -n "$gpg_key" ] && [ "$gpg_key" != "null" ]; then
         echo -e "GPG Key: $gpg_key"
     fi
-    
+
     # Verify git config matches profile
     git_email=$(git config --global user.email)
     if [ "$git_email" != "$email" ]; then
         echo -e "${YELLOW}Warning: Git config email ($git_email) doesn't match profile email ($email)${NC}"
         echo "Run 'gh-switch switch $current_profile' to resynchronize"
     fi
-    
+
     # Show git signing status
     signing_enabled=$(git config --global --get commit.gpgsign)
     if [ -n "$signing_enabled" ] && [ "$signing_enabled" = "true" ]; then
         echo -e "Commit signing: ${GREEN}enabled${NC}"
-        
+
         # Verify GPG key in git config matches profile
         git_signing_key=$(git config --global --get user.signingkey)
         if [ -n "$git_signing_key" ] && [ -n "$gpg_key" ] && [ "$git_signing_key" != "$gpg_key" ]; then
@@ -386,7 +387,7 @@ show_current_profile() {
     else
         echo -e "Commit signing: ${YELLOW}disabled${NC}"
     fi
-    
+
     # macOS specific: Check SSH key in keychain
     if ssh-add -l 2>/dev/null | grep -q "id_${current_profile}"; then
         echo -e "SSH key for this profile: ${GREEN}loaded in SSH agent${NC}"
@@ -394,7 +395,7 @@ show_current_profile() {
         echo -e "SSH key for this profile: ${YELLOW}not found in SSH agent${NC}"
         echo "Consider adding it with: ssh-add --apple-use-keychain ~/.ssh/id_${current_profile}"
     fi
-    
+
     return 0
 }
 
@@ -407,14 +408,14 @@ remove_profile() {
     fi
 
     name="$1"
-    
+
     # Check if profile exists
     if ! jq -e ".\"$name\"" "$PROFILES_FILE" > /dev/null 2>&1; then
         echo -e "${RED}Error: Profile '$name' does not exist${NC}"
         echo "Use 'gh-switch list' to see available profiles"
         return 1
     fi
-    
+
     # Ask for confirmation
     echo -e "${YELLOW}Are you sure you want to remove profile '$name'? (y/N)${NC}"
     read -r response
@@ -422,26 +423,26 @@ remove_profile() {
         echo -e "${YELLOW}Operation cancelled${NC}"
         return 0
     fi
-    
+
     # Check if it's the current profile
     if [ -f "$CURRENT_PROFILE_FILE" ] && [ "$(cat "$CURRENT_PROFILE_FILE")" = "$name" ]; then
         echo -e "${YELLOW}Warning: Removing the current active profile${NC}"
         rm -f "$CURRENT_PROFILE_FILE"
     fi
-    
+
     # Remove profile from profiles.json
     if ! jq "del(.\"$name\")" "$PROFILES_FILE" > "$CONFIG_DIR/temp.json"; then
         echo -e "${RED}Error: Failed to update profile file${NC}"
         return 1
     fi
-    
+
     if ! mv "$CONFIG_DIR/temp.json" "$PROFILES_FILE"; then
         echo -e "${RED}Error: Failed to save profile file${NC}"
         return 1
     fi
-    
+
     echo -e "${GREEN}Profile '$name' removed${NC}"
-    
+
     # Suggest switching to another profile if available
     other_profile=$(jq -r 'keys | .[0] // empty' "$PROFILES_FILE")
     if [ -n "$other_profile" ]; then
@@ -451,7 +452,7 @@ remove_profile() {
             switch_profile "$other_profile"
         fi
     fi
-    
+
     return 0
 }
 
