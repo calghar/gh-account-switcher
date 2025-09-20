@@ -144,11 +144,7 @@ gh-switch switch work john.contractor@company.com
 gh-switch set-name work "John Doe (Work)"
 
 # Different name for personal
-gh-switch set-name personal "Johnny Smith"
-
-# Output shows immediate effect:
-# Set git name for profile 'work' to 'John Doe (Work)'
-# Updated current git configuration with new name
+gh-switch set-name personal "Jane Doe"
 ```
 
 #### How It Works
@@ -395,41 +391,5 @@ import <file>                     Import profiles
 - Export/import profiles for consistent team setup
 - Share SSH config examples
 - Document profile conventions
-
-## Troubleshooting
-
-### Common Issues
-
-**Profile not switching:**
-
-- Check `gh-switch current` to verify
-- Ensure git config is not overridden locally
-- Check for directory-specific git config
-
-**GPG signing not working:**
-
-- Verify key is imported: `gpg --list-keys`
-- Check GPG agent configuration
-- Ensure pinentry is properly configured
-
-**Auto-switching not working:**
-
-- Verify you're in a git repository
-- Check directory rules: `gh-switch auto-list`
-- Ensure paths are absolute
-
-**SSH authentication failing:**
-
-- Verify SSH config syntax
-- Check SSH keys are loaded: `ssh-add -l`
-- Test connection: `ssh -T git@github-profilename`
-
-### Getting Help
-
-1. Check logs and error messages
-2. Verify prerequisites are installed
-3. Review configuration files
-4. Test with minimal setup
-5. Consult platform-specific documentation
 
 For additional support, see the [Troubleshooting Guide](troubleshooting.md).

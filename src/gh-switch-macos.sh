@@ -38,6 +38,34 @@ check_prerequisites() {
     fi
 }
 
+# macOS-specific SSH key auto-addition
+auto_add_ssh_key() {
+    local profile_name="$1"
+    local ssh_key_file="$HOME/.ssh/id_${profile_name}"
+
+    # Check if SSH key file exists
+    if [ ! -f "$ssh_key_file" ]; then
+        return 1
+    fi
+
+    # Check if key is already loaded
+    if is_ssh_key_loaded "$profile_name"; then
+        echo -e "${GREEN}SSH key for profile '$profile_name' is already loaded${NC}"
+        return 0
+    fi
+
+    # Add key to macOS keychain
+    echo -e "${CYAN}Adding SSH key to macOS keychain...${NC}"
+    if ssh-add --apple-use-keychain "$ssh_key_file" 2>/dev/null; then
+        echo -e "${GREEN}Successfully added SSH key for profile '$profile_name' to keychain${NC}"
+        return 0
+    else
+        echo -e "${RED}Failed to add SSH key to keychain${NC}"
+        echo -e "${YELLOW}You may need to run: ssh-add --apple-use-keychain ~/.ssh/id_${profile_name}${NC}"
+        return 1
+    fi
+}
+
 # Switch to a profile (macOS-specific implementation)
 switch_profile() {
     if [ $# -lt 1 ]; then
@@ -159,16 +187,29 @@ switch_profile() {
     
     # Save current profile
     echo "$profile_name" > "$CURRENT_PROFILE_FILE"
-    
+
+    # Handle SSH key auto-addition if requested
+    local ssh_handled=false
+    if [ "$AUTO_SSH" = true ] && [ "$switch_type" != "auto" ]; then
+        echo ""
+        if auto_add_ssh_key "$profile_name"; then
+            ssh_handled=true
+        fi
+    fi
+
     # Show additional info only for manual switches
     if [ "$switch_type" != "auto" ]; then
         echo ""
         echo -e "${CYAN}Next steps:${NC}"
-        
-        # Check if SSH key exists and suggest adding it
+
+        # Check if SSH key exists and suggest adding it (only if not already handled)
         local ssh_key_file="$HOME/.ssh/id_${profile_name}"
-        if [ -f "$ssh_key_file" ]; then
-            echo -e "• Add SSH key to keychain: ${YELLOW}ssh-add --apple-use-keychain ~/.ssh/id_${profile_name}${NC}"
+        if [ -f "$ssh_key_file" ] && [ "$ssh_handled" = false ]; then
+            if is_ssh_key_loaded "$profile_name"; then
+                echo -e "• SSH key for this profile: ${GREEN}already loaded in keychain${NC}"
+            else
+                echo -e "• Add SSH key to keychain: ${YELLOW}ssh-add --apple-use-keychain ~/.ssh/id_${profile_name}${NC}"
+            fi
         fi
         
         # Check credential helper and suggest keychain cleanup
@@ -456,6 +497,9 @@ case "$command" in
         ;;
     "import")
         import_profiles "$@"
+        ;;
+    "update")
+        update_gh_switch
         ;;
     "help")
         show_help
