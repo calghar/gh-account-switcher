@@ -1,46 +1,26 @@
 # GitHub Account Switcher
 
-> multi-account management for Git workflows with advanced features
+> Multi-account management for Git workflows with advanced features
 
 [![Platform Support](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)](https://github.com/calghar/gh-account-switcher#-requirements) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## ✨ Features
 
 - **Multi-email support** - Multiple emails per profile for different contexts
+- **Auto SSH key management** - Automatically add SSH keys and configure SSH for multi-account support
 - **Directory-based auto-switching** - Automatically switch profiles by location
-- **Git name management** - Different names for different profiles
 - **Profile import/export** - Share configurations across machines
-- **Automation flags** - `--yes` flag for scripting
-- **Enhanced platform support** - Better Windows, Linux, and macOS integration
+- **GPG commit signing** - Automatic GPG key management per profile
+- **Cross-platform** - Works on macOS, Linux, and Windows
 
 ## 🚀 Quick Start
 
 ### Installation
 
-#### **Quick Install (Recommended)**
-
 ```bash
 # One-liner for all platforms
 curl -fsSL https://raw.githubusercontent.com/calghar/gh-account-switcher/main/install.sh | bash
 ```
-
-#### **Manual Install**
-
-```bash
-# macOS
-curl -o gh-switch https://raw.githubusercontent.com/calghar/gh-account-switcher/main/src/gh-switch-macos.sh
-chmod +x gh-switch && mkdir -p ~/bin && mv gh-switch ~/bin/
-
-# Linux  
-curl -o gh-switch https://raw.githubusercontent.com/calghar/gh-account-switcher/main/src/gh-switch-linux.sh
-chmod +x gh-switch && mkdir -p ~/bin && mv gh-switch ~/bin/
-
-# Windows (Git Bash)
-curl -o gh-switch.sh https://raw.githubusercontent.com/calghar/gh-account-switcher/main/src/gh-switch-windows.sh
-chmod +x gh-switch.sh && mkdir -p ~/bin && mv gh-switch.sh ~/bin/gh-switch
-```
-
-> **Note**: The installer automatically adds `~/bin` to your PATH and handles updates properly.
 
 ### Basic Usage
 
@@ -49,173 +29,102 @@ chmod +x gh-switch.sh && mkdir -p ~/bin && mv gh-switch.sh ~/bin/gh-switch
 gh-switch add work john.doe@company.com "John Doe" ABC123DEF456
 gh-switch add personal john@gmail.com "Johnny Smith"
 
-# Switch profiles
-gh-switch switch work
+# Switch profiles (with auto SSH key loading)
+gh-switch --auto-ssh switch work
 gh-switch switch personal
 
 # List profiles
 gh-switch list
+
+# Update to latest version
+gh-switch update
 ```
 
-## 🎯 Key Features
+## 📋 Core Commands
 
-### Improved User Experience
+| Command | Description |
+|---------|-------------|
+| `gh-switch add <name> <email> [git-name] [gpg-key]` | Add a new profile |
+| `gh-switch switch <name> [email]` | Switch to a profile |
+| `gh-switch --auto-ssh switch <name>` | Switch and auto-add SSH key |
+| `gh-switch list` | List all profiles |
+| `gh-switch current` | Show current profile |
+| `gh-switch auto <dir> <profile>` | Set up auto-switching for directory |
+| `gh-switch update` | Update to latest version |
 
-Switch profiles get clean, actionable next steps instead of verbose explanations:
+### Key Features Demo
 
 ```bash
-$ gh-switch switch personal
-Switched to profile 'personal' with email 'john@gmail.com' and name 'Johnny Smith'
+# Auto SSH key management with SSH config
+$ gh-switch --auto-ssh switch work
+Switched to profile 'work' with email 'john@company.com' and name 'John Doe'
 
-Next steps:
-• Add SSH key to keychain: ssh-add --apple-use-keychain ~/.ssh/id_personal
-• Update saved credentials in Keychain Access (search for 'github.com')
-• View SSH config help: gh-switch help
+Added SSH config entry for profile 'work'
+Use this host in git URLs: git@github.com-work:user/repo.git
+Adding SSH key to macOS keychain...
+Successfully added SSH key for profile 'work' to keychain
 ```
 
-### Multi-Email Support
+### How SSH Multi-Account Support Works
 
+When using `--auto-ssh`, the tool automatically:
+
+1. **Creates SSH config entries** in `~/.ssh/config` with unique host aliases
+2. **Adds SSH keys to the agent** (without removing other keys)
+3. **Uses `IdentitiesOnly yes`** to ensure GitHub uses the correct key per profile
+
+**Example SSH config entries created:**
+```ssh
+Host github.com-work
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_work
+    IdentitiesOnly yes
+
+Host github.com-personal
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_personal
+    IdentitiesOnly yes
+```
+
+**Using the host aliases in your git repos:**
 ```bash
-# Add additional emails to a profile
-gh-switch add-email work john.contractor@company.com
-gh-switch add-email work j.doe@consulting.com
+# Clone using profile-specific host
+git clone git@github.com-work:company/repo.git
 
-# Switch to specific email
-gh-switch switch work john.contractor@company.com
-
-# List all emails for a profile
-gh-switch list-emails work
+# Update existing repo's remote
+git remote set-url origin git@github.com-personal:user/repo.git
 ```
 
-### Directory-Based Auto-Switching
-
-```bash
-# Set up automatic switching
-gh-switch auto ~/projects/work work
-gh-switch auto ~/projects/personal personal
-
-# Now switching happens automatically
-cd ~/projects/work && gh-switch     # Switches to 'work' profile
-cd ~/projects/personal && gh-switch # Switches to 'personal' profile
-```
-
-### Profile Management
-
-```bash
-# Export profiles for backup/sharing
-gh-switch export > my-profiles.json
-
-# Import profiles on another machine
-gh-switch import my-profiles.json
-
-# Set git names per profile (updates immediately if profile is active)
-gh-switch set-name work "John Doe (Work)"
-gh-switch set-name personal "Johnny Smith"
-```
-
-## 📖 Documentation
-
-- **[Installation Guide](docs/installation.md)** - Platform-specific installation instructions
-- **[User Guide](docs/user-guide.md)** - Complete feature documentation
-- **[Advanced Features](docs/advanced-features.md)** - Power user features and automation
-- **[SSH Setup](docs/examples/ssh-config-example)** - Multi-account SSH configuration
-- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
-
-## Command Reference
-
-### Core Commands
-
-```bash
-gh-switch add <name> <email> [git-name] [gpg-key]  # Add profile
-gh-switch switch <name> [email]                    # Switch profile  
-gh-switch list                                     # List profiles
-gh-switch current                                  # Show current profile
-gh-switch remove <name>                            # Remove profile
-```
-
-### Email Management
-
-```bash
-gh-switch add-email <profile> <email>         # Add email to profile
-gh-switch remove-email <profile> <email>      # Remove email from profile
-gh-switch list-emails <profile>               # List profile emails
-```
-
-### Advanced Features
-
-```bash
-gh-switch set-name <profile> <name>           # Set git name
-gh-switch auto <directory> <profile>          # Add auto-switch rule
-gh-switch auto-list                           # List auto-switch rules
-gh-switch export [file]                       # Export profiles
-gh-switch import <file>                       # Import profiles
-```
-
-### Global Options
-
-```bash
---yes, -y          # Skip confirmation prompts (for automation)
---help, -h         # Show help message
---version, -v      # Show version information
-```
+This approach allows multiple GitHub SSH keys to coexist peacefully, with SSH automatically selecting the correct key based on the host alias you use.
 
 ## 🛠️ Requirements
 
-### Essential
+**Essential:**
 
-- **Git** 2.22.0+
-- **Bash** 4.0+
-- **jq** (JSON processor)
+- Git 2.22.0+
+- Bash 4.0+
+- jq (JSON processor)
+- curl (for updates)
 
-### Optional  
+**Optional:**
 
-- **GPG** (for commit signing)
-- **SSH** (for key-based authentication)
+- GPG (for commit signing)
+- SSH (for key-based authentication)
 
-### Platform-Specific
+## 📖 Documentation
 
-- **macOS**: Homebrew recommended (`brew install git jq gnupg`)
-- **Linux**: Package manager (`apt install git jq gnupg` or equivalent)  
-- **Windows**: Git for Windows + package manager (Chocolatey/Scoop/Winget)
-
-## Use Cases
-
-### Development Teams
-
-- **Consistent setup** across team members
-- **Client separation** with different profiles per client
-- **Compliance** with different signing requirements
-
-### Individual Developers  
-
-- **Work/personal separation** with automatic switching
-- **Multiple email contexts** (employee, contractor, consultant)
-- **Different SSH keys** per account
-
-### Organizations
-
-- **Standardized configurations** via profile templates
-- **Audit trails** with profile usage logging
-- **Security compliance** with mandatory GPG signing
-
-## Security Features
-
-- **GPG commit signing** with automatic key management
-- **SSH key isolation** per profile
-- **Secure credential storage** (Keychain, libsecret, Windows Credential Manager)
-- **Profile validation** to prevent configuration errors
+- **[Complete Command Reference](docs/commands.md)** - All commands and examples
+- **[Use Cases](docs/use-cases.md)** - Team setups, freelancing, organizations
+- **[Security Features](docs/security.md)** - GPG signing, SSH keys, best practices
+- **[Installation Guide](docs/installation.md)** - Platform-specific instructions
+- **[Advanced Features](docs/advanced-features.md)** - Directory rules, automation
+- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-```bash
-git clone https://github.com/calghar/gh-account-switcher
-cd gh-account-switcher
-./tests/run-tests.sh
-```
+Please see the [Contributing Guide](CONTRIBUTING.md) for details.
 
 ## 📄 License
 
@@ -223,6 +132,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-- **Documentation**: Check our [comprehensive docs](docs/)
 - **Issues**: [GitHub Issues](https://github.com/calghar/gh-account-switcher/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/calghar/gh-account-switcher/discussions)
+- **Documentation**: [Complete Docs](docs/)

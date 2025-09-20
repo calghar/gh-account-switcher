@@ -27,6 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/calghar/gh-account-switcher/main/in
 ```
 
 This installer will:
+
 - Detect your platform automatically
 - Install to `~/bin` (allows easy updates without sudo)
 - Add `~/bin` to your PATH automatically

@@ -93,6 +93,39 @@ get_windows_gpg_path() {
     which gpg 2>/dev/null || echo "gpg"
 }
 
+# Windows-specific SSH key auto-addition
+auto_add_ssh_key() {
+    local profile_name="$1"
+    local ssh_key_file="$HOME/.ssh/id_${profile_name}"
+
+    # Check if SSH key file exists
+    if [ ! -f "$ssh_key_file" ]; then
+        echo -e "${YELLOW}SSH key not found: ${ssh_key_file}${NC}"
+        echo -e "${CYAN}Generate one with: ssh-keygen -t ed25519 -C \"your_email@example.com\" -f ${ssh_key_file}${NC}"
+        return 1
+    fi
+
+    # Ensure SSH config entry exists
+    ensure_ssh_config_entry "$profile_name"
+
+    # Check if key is already loaded
+    if is_ssh_key_loaded "$profile_name"; then
+        echo -e "${GREEN}SSH key for profile '$profile_name' is already loaded${NC}"
+        return 0
+    fi
+
+    # Add key to SSH agent
+    echo -e "${CYAN}Adding SSH key to SSH agent...${NC}"
+    if ssh-add "$ssh_key_file" 2>/dev/null; then
+        echo -e "${GREEN}Successfully added SSH key for profile '$profile_name' to SSH agent${NC}"
+        return 0
+    else
+        echo -e "${RED}Failed to add SSH key to SSH agent${NC}"
+        echo -e "${YELLOW}You may need to run: ssh-add ~/.ssh/id_${profile_name}${NC}"
+        return 1
+    fi
+}
+
 # Switch profiles on Windows
 switch_profile() {
     if [ $# -lt 1 ]; then
@@ -237,21 +270,34 @@ EOF
     
     # Save current profile
     echo "$profile_name" > "$CURRENT_PROFILE_FILE"
-    
+
+    # Handle SSH key auto-addition if requested
+    local ssh_handled=false
+    if [ "$AUTO_SSH" = true ] && [ "$switch_type" != "auto" ]; then
+        echo ""
+        if auto_add_ssh_key "$profile_name"; then
+            ssh_handled=true
+        fi
+    fi
+
     # Show additional info only for manual switches
     if [ "$switch_type" != "auto" ]; then
         echo ""
         echo -e "${CYAN}Next steps:${NC}"
-        
-        # Check if SSH key exists and suggest adding it
+
+        # Check if SSH key exists and suggest adding it (only if not already handled)
         local ssh_key_file="$HOME/.ssh/id_${profile_name}"
-        if [ -f "$ssh_key_file" ]; then
-            if is_git_bash; then
-                echo -e "• Add SSH key to ssh-agent: ${YELLOW}ssh-add ~/.ssh/id_${profile_name}${NC}"
-            elif is_wsl; then
-                echo -e "• Add SSH key to ssh-agent: ${YELLOW}ssh-add ~/.ssh/id_${profile_name}${NC}"
+        if [ -f "$ssh_key_file" ] && [ "$ssh_handled" = false ]; then
+            if is_ssh_key_loaded "$profile_name"; then
+                echo -e "• SSH key for this profile: ${GREEN}already loaded in SSH agent${NC}"
             else
-                echo -e "• Add SSH key using ssh-agent or Pageant"
+                if is_git_bash; then
+                    echo -e "• Add SSH key to ssh-agent: ${YELLOW}ssh-add ~/.ssh/id_${profile_name}${NC}"
+                elif is_wsl; then
+                    echo -e "• Add SSH key to ssh-agent: ${YELLOW}ssh-add ~/.ssh/id_${profile_name}${NC}"
+                else
+                    echo -e "• Add SSH key using ssh-agent or Pageant"
+                fi
             fi
         fi
         
@@ -503,8 +549,37 @@ check_prerequisites
 init_config
 
 # Parse global flags first
-remaining_args=$(parse_flags "$@")
-eval "set -- $remaining_args"
+# Handle global flags that should exit immediately
+case "$1" in
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+    --version|-v)
+        echo "GitHub Account Switcher v$VERSION"
+        exit 0
+        ;;
+esac
+
+# Parse flags manually to preserve variable state
+args=()
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --yes|-y)
+            SKIP_CONFIRMATIONS=true
+            shift
+            ;;
+        --auto-ssh|-s)
+            AUTO_SSH=true
+            shift
+            ;;
+        *)
+            args+=("$1")
+            shift
+            ;;
+    esac
+done
+set -- "${args[@]}"
 
 # Check for directory-based auto-switching if in a git repo and no command specified
 if [ $# -eq 0 ] && is_git_repo; then
@@ -563,6 +638,9 @@ case "$command" in
         ;;
     "import")
         import_profiles "$@"
+        ;;
+    "update")
+        update_gh_switch
         ;;
     "help")
         show_help

@@ -17,30 +17,32 @@ NC='\033[0m' # No Color
 
 # Global flags
 SKIP_CONFIRMATIONS=false
+AUTO_SSH=false
 
-# Pparse command line flags
+# Parse command line flags (modifies global variables in-place)
+# Call with: parse_flags "$@"
+# Then use: shift $FLAGS_PARSED to remove parsed flags from $@
 parse_flags() {
+    FLAGS_PARSED=0
     while [[ $# -gt 0 ]]; do
         case $1 in
             --yes|-y)
                 SKIP_CONFIRMATIONS=true
                 shift
+                ((FLAGS_PARSED++))
                 ;;
-            --help|-h)
-                show_help
-                exit 0
-                ;;
-            --version|-v)
-                echo "GitHub Account Switcher v$VERSION"
-                exit 0
+            --auto-ssh|-s)
+                AUTO_SSH=true
+                shift
+                ((FLAGS_PARSED++))
                 ;;
             *)
-                # Return remaining args with proper quoting
-                printf '%q ' "$@"
-                return
+                # Stop parsing when we hit non-flag argument
+                return 0
                 ;;
         esac
     done
+    return 0
 }
 
 # Ask for confirmation
@@ -159,6 +161,7 @@ show_help() {
     echo
     echo "Global Options:"
     echo "  -y, --yes           Skip confirmation prompts"
+    echo "  -s, --auto-ssh      Automatically add SSH key to agent/keychain"
     echo "  -h, --help          Show this help message"
     echo "  -v, --version       Show version information"
     echo
@@ -177,6 +180,7 @@ show_help() {
     echo "  auto-list                       List all directory-based switching rules"
     echo "  export [file]                   Export profiles to file (default: stdout)"
     echo "  import <file>                   Import profiles from file"
+    echo "  update                          Update gh-switch to the latest version"
     echo "  help                           Show this help message"
     echo
     echo "Examples:"
@@ -184,6 +188,7 @@ show_help() {
     echo "  gh-switch add personal john@gmail.com \"John Smith\""
     echo "  gh-switch add-email work john.doe@contractor.com"
     echo "  gh-switch switch work john.doe@contractor.com"
+    echo "  gh-switch --auto-ssh switch work"
     echo "  gh-switch auto ~/projects/work work"
     echo "  gh-switch export > my-profiles.json"
     echo "  gh-switch --yes import my-profiles.json"
@@ -482,9 +487,199 @@ import_profiles() {
     return 0
 }
 
+# Update gh-switch to the latest version
+update_gh_switch() {
+    echo -e "${BLUE}Checking for updates...${NC}"
+
+    # GitHub repository information
+    local REPO_OWNER="calghar"
+    local REPO_NAME="gh-account-switcher"
+    local GITHUB_API="https://api.github.com/repos/$REPO_OWNER/$REPO_NAME"
+
+    # Check if we can reach GitHub
+    if ! command -v curl &> /dev/null; then
+        echo -e "${RED}Error: curl is required for updates${NC}"
+        return 1
+    fi
+
+    # Get latest version from GitHub API
+    local latest_version
+    latest_version=$(curl -s "$GITHUB_API/releases/latest" | grep -o '"tag_name": "[^"]*' | cut -d'"' -f4 2>/dev/null)
+
+    if [ -z "$latest_version" ]; then
+        echo -e "${RED}Error: Could not fetch latest version from GitHub${NC}"
+        echo "Please check your internet connection or update manually."
+        return 1
+    fi
+
+    # Remove 'v' prefix if present
+    latest_version=${latest_version#v}
+
+    # Compare versions
+    if [ "$latest_version" = "$VERSION" ]; then
+        echo -e "${GREEN}You are already running the latest version ($VERSION)${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}New version available: $latest_version (current: $VERSION)${NC}"
+
+    if ! confirm "Would you like to update now?"; then
+        echo -e "${YELLOW}Update cancelled${NC}"
+        return 0
+    fi
+
+    # Detect platform
+    local platform
+    case "$(uname -s)" in
+        Darwin)  platform="macos" ;;
+        Linux)   platform="linux" ;;
+        MINGW*|MSYS*|CYGWIN*) platform="windows" ;;
+        *)
+            echo -e "${RED}Error: Unsupported platform $(uname -s)${NC}"
+            return 1
+            ;;
+    esac
+
+    # Find current installation location
+    local install_path
+    install_path=$(which gh-switch 2>/dev/null)
+    if [ -z "$install_path" ]; then
+        echo -e "${RED}Error: Could not locate current gh-switch installation${NC}"
+        return 1
+    fi
+
+    # Download new version
+    local download_url="https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/src/gh-switch-${platform}.sh"
+    local temp_file="/tmp/gh-switch-update-$$"
+
+    echo -e "${CYAN}Downloading update...${NC}"
+    if ! curl -fsSL "$download_url" -o "$temp_file"; then
+        echo -e "${RED}Error: Failed to download update${NC}"
+        rm -f "$temp_file"
+        return 1
+    fi
+
+    # Verify download
+    if [ ! -s "$temp_file" ]; then
+        echo -e "${RED}Error: Downloaded file is empty${NC}"
+        rm -f "$temp_file"
+        return 1
+    fi
+
+    # Create backup
+    local backup_file="${install_path}.backup"
+    if ! cp "$install_path" "$backup_file"; then
+        echo -e "${RED}Error: Could not create backup${NC}"
+        rm -f "$temp_file"
+        return 1
+    fi
+
+    # Install new version
+    echo -e "${CYAN}Installing update...${NC}"
+    if ! cp "$temp_file" "$install_path"; then
+        echo -e "${RED}Error: Failed to install update${NC}"
+        echo -e "${YELLOW}Restoring backup...${NC}"
+        cp "$backup_file" "$install_path"
+        rm -f "$temp_file" "$backup_file"
+        return 1
+    fi
+
+    # Set executable permissions
+    chmod +x "$install_path"
+
+    # Download and update core file if needed
+    local core_dir
+    core_dir=$(dirname "$install_path")
+    if [[ "$install_path" == *"/.local/bin/"* ]]; then
+        core_dir="$HOME/.local/lib/gh-switch"
+        mkdir -p "$core_dir"
+        if ! curl -fsSL "https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/src/gh-switch-core.sh" -o "$core_dir/gh-switch-core.sh"; then
+            echo -e "${YELLOW}Warning: Could not update core file${NC}"
+        fi
+    fi
+
+    # Clean up
+    rm -f "$temp_file" "$backup_file"
+
+    echo -e "${GREEN}Successfully updated to version $latest_version!${NC}"
+    echo -e "${CYAN}Run 'gh-switch --version' to verify the update${NC}"
+
+    return 0
+}
+
 # Check if we're in a git repository
 is_git_repo() {
     git rev-parse --git-dir > /dev/null 2>&1
+}
+
+# Check if SSH key is loaded in agent
+is_ssh_key_loaded() {
+    local profile_name="$1"
+    ssh-add -l 2>/dev/null | grep -q "id_${profile_name}"
+}
+
+# Ensure SSH config has entry for this profile
+ensure_ssh_config_entry() {
+    local profile_name="$1"
+    local ssh_config="$HOME/.ssh/config"
+    local host_alias="github.com-${profile_name}"
+    local ssh_key_file="$HOME/.ssh/id_${profile_name}"
+
+    # Create .ssh directory if it doesn't exist
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+
+    # Create config file if it doesn't exist
+    if [ ! -f "$ssh_config" ]; then
+        touch "$ssh_config"
+        chmod 600 "$ssh_config"
+    fi
+
+    # Check if entry already exists
+    if grep -q "Host ${host_alias}" "$ssh_config" 2>/dev/null; then
+        return 0
+    fi
+
+    # Add entry to SSH config
+    cat >> "$ssh_config" << EOF
+
+# GitHub profile: ${profile_name}
+Host ${host_alias}
+    HostName github.com
+    User git
+    IdentityFile ${ssh_key_file}
+    IdentitiesOnly yes
+EOF
+
+    echo -e "${GREEN}Added SSH config entry for profile '${profile_name}'${NC}"
+    echo -e "${YELLOW}Use this host in git URLs: git@${host_alias}:user/repo.git${NC}"
+    return 0
+}
+
+# Auto-add SSH key to agent/keychain (platform-specific implementation will override)
+auto_add_ssh_key() {
+    local profile_name="$1"
+    local ssh_key_file="$HOME/.ssh/id_${profile_name}"
+
+    # Check if SSH key file exists
+    if [ ! -f "$ssh_key_file" ]; then
+        echo -e "${YELLOW}SSH key not found: ${ssh_key_file}${NC}"
+        echo -e "${CYAN}Generate one with: ssh-keygen -t ed25519 -C \"your_email@example.com\" -f ${ssh_key_file}${NC}"
+        return 1
+    fi
+
+    # Ensure SSH config entry exists
+    ensure_ssh_config_entry "$profile_name"
+
+    # Check if key is already loaded
+    if is_ssh_key_loaded "$profile_name"; then
+        echo -e "${GREEN}SSH key for profile '$profile_name' is already loaded${NC}"
+        return 0
+    fi
+
+    # Platform-specific implementation should override this
+    echo -e "${YELLOW}SSH key auto-addition not implemented for this platform${NC}"
+    return 1
 }
 
 # Current directory profile rule
