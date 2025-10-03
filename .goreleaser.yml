@@ -1,0 +1,76 @@
+project_name: gh-switch
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: gh-switch
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/calghar/gh-account-switcher/cmd.version={{.Version}}
+    binary: gh-switch
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - docs/**/*
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - typo
+
+release:
+  github:
+    owner: calghar
+    name: gh-account-switcher
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+
+brews:
+  - name: gh-switch
+    repository:
+      owner: calghar
+      name: homebrew-gh-switch
+    homepage: https://github.com/calghar/gh-account-switcher
+    description: Modern GitHub account switcher with Git includeIf and SSH multi-account support
+    license: MIT
+    install: |
+      bin.install "gh-switch"
+    test: |
+      system "#{bin}/gh-switch", "--version"
