@@ -6,7 +6,23 @@ Manage several Git identities (work, personal, client) and switch them by direct
 
 ## Install
 
-Requires Go 1.24.4 or later.
+Download a pre-built binary from the [latest release](https://github.com/calghar/gh-account-switcher/releases/latest):
+
+```bash
+# macOS (Apple Silicon)
+curl -L https://github.com/calghar/gh-account-switcher/releases/latest/download/gh-switch-darwin-arm64 -o gh-switch
+
+# macOS (Intel)
+curl -L https://github.com/calghar/gh-account-switcher/releases/latest/download/gh-switch-darwin-amd64 -o gh-switch
+
+# Linux (amd64)
+curl -L https://github.com/calghar/gh-account-switcher/releases/latest/download/gh-switch-linux-amd64 -o gh-switch
+
+chmod +x gh-switch
+sudo mv gh-switch /usr/local/bin/
+```
+
+Or install with Go 1.24.4 or later:
 
 ```bash
 go install github.com/calghar/gh-account-switcher@latest
