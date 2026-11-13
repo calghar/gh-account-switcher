@@ -51,7 +51,7 @@ func (gm *ConfigManager) SetupProfile(profile *config.Profile, directoryPath str
 	// SSH command configuration (if SSH key path is specified)
 	if profile.SSHKeyPath != "" {
 		configContent.WriteString(fmt.Sprintf("[core]\n"))
-		configContent.WriteString(fmt.Sprintf("\tsshCommand = ssh -i %s -F /dev/null\n", profile.SSHKeyPath))
+		configContent.WriteString(fmt.Sprintf("\tsshCommand = ssh -i %s -o IdentitiesOnly=yes\n", profile.SSHKeyPath))
 	}
 
 	// Write profile-specific config

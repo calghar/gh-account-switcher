@@ -115,6 +115,7 @@ gh-switch auto ~/personal personal-profile
 # Auto SSH key management with SSH config
 $ gh-switch --auto-ssh switch work
 Switched to profile 'work' with email 'john@company.com' and name 'John Doe'
+  Git identity only. Remote URLs need the SSH host alias (git@<host>:owner/repo.git).
 
 Added SSH config entry for profile 'work'
 Use this host in git URLs: git@github.com-work:user/repo.git

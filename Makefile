@@ -1,7 +1,7 @@
 .PHONY: build install clean test lint help
 
 BINARY_NAME=gh-switch
-VERSION?=2.0.0
+VERSION?=1.1.0
 BUILD_DIR=dist
 GO=go
 GOFLAGS=-ldflags="-s -w -X github.com/calghar/gh-account-switcher/cmd.version=$(VERSION)"

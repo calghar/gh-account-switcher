@@ -100,6 +100,7 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 	if profile.GPGKey != "" {
 		fmt.Printf("  GPG signing: enabled\n")
 	}
+	fmt.Printf("  Git identity only. Remote URLs need the SSH host alias (git@<host>:owner/repo.git).\n")
 
 	// Handle SSH key if --auto-ssh flag is set
 	if autoSSH {
