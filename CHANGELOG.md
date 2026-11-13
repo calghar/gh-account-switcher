@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.1.1] - 2026-11-13
 
 ### Fixed
 - Fixed directory rules matching sibling folders: a rule for `~/work` no longer applies to `~/work2`

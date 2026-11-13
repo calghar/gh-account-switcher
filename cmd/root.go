@@ -10,7 +10,7 @@ import (
 var (
 	autoSSH     bool
 	skipPrompts bool
-	version     = "1.1.0"
+	version     = "1.1.1"
 )
 
 var rootCmd = &cobra.Command{
