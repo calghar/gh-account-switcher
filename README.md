@@ -1,227 +1,112 @@
-# GitHub Account Switcher
+# gh-switch
 
-> Modern CLI tool for managing multiple Git identities with automatic switching
+Manage several Git identities (work, personal, client) and switch them by directory.
 
-[![Platform Support](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)](https://github.com/calghar/gh-account-switcher#-requirements) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://golang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## ✨ Features
+## Install
 
-- **Git includeIf automation** - Set up once, switches automatically by directory
-- **SSH config with IdentitiesOnly** - Proper multi-account SSH key isolation
-- **Multi-email support** - Multiple emails per profile for different contexts
-- **Auto SSH key management** - Platform-specific keychain integration
-- **Profile import/export** - Share configurations across machines
-- **GPG commit signing** - Automatic GPG key management per profile
-- **Cross-platform** - Single binary for macOS, Linux, and Windows
-
-## 🚀 Quick Start
-
-### Installation
-
-#### Option 1: Download Pre-built Binary (Recommended)
-
-```bash
-# macOS (Apple Silicon)
-curl -L https://github.com/calghar/gh-account-switcher/releases/latest/download/gh-switch-darwin-arm64 -o gh-switch
-chmod +x gh-switch
-sudo mv gh-switch /usr/local/bin/
-
-# macOS (Intel)
-curl -L https://github.com/calghar/gh-account-switcher/releases/latest/download/gh-switch-darwin-amd64 -o gh-switch
-chmod +x gh-switch
-sudo mv gh-switch /usr/local/bin/
-
-# Linux
-curl -L https://github.com/calghar/gh-account-switcher/releases/latest/download/gh-switch-linux-amd64 -o gh-switch
-chmod +x gh-switch
-sudo mv gh-switch /usr/local/bin/
-
-# Windows (PowerShell)
-# Download from https://github.com/calghar/gh-account-switcher/releases
-```
-
-#### Option 2: Build from Source
-
-```bash
-git clone https://github.com/calghar/gh-account-switcher.git
-cd gh-account-switcher
-make build
-make install  # Installs to ~/bin
-```
-
-#### Option 3: Install with Go
+Requires Go 1.24.4 or later.
 
 ```bash
 go install github.com/calghar/gh-account-switcher@latest
 ```
 
-### Basic Usage
-
-```bash
-# Add profiles
-gh-switch add work john.doe@company.com "John Doe" ABC123DEF456
-gh-switch add personal john@gmail.com "Johnny Smith"
-
-# Setup automatic directory-based switching (recommended!)
-gh-switch auto ~/projects/work work
-gh-switch auto ~/projects/personal personal
-# Now Git automatically uses the right profile in each directory!
-
-# Or switch manually (affects global git config)
-gh-switch switch work
-gh-switch --auto-ssh switch personal  # Also adds SSH key
-
-# List profiles and directory rules
-gh-switch list
-gh-switch auto-list
-
-# View current configuration
-gh-switch current
-```
-
-## 📋 Core Commands
-
-| Command | Description |
-|---------|-------------|
-| `gh-switch add <name> <email> [git-name] [gpg-key]` | Add a new profile |
-| `gh-switch auto <dir> <profile>` | Setup automatic switching (uses Git includeIf) |
-| `gh-switch switch <name> [email]` | Manually switch profile globally |
-| `gh-switch --auto-ssh switch <name>` | Switch and auto-add SSH key to keychain |
-| `gh-switch list` | List all profiles with details |
-| `gh-switch current` | Show current Git configuration |
-| `gh-switch auto-list` | List directory rules |
-| `gh-switch remove <name>` | Remove a profile |
-| `gh-switch export [file]` | Export profiles to JSON |
-| `gh-switch import <file>` | Import profiles from JSON |
-
-### 🎯 Git IncludeIf: The Better Way
-
-Instead of manually switching profiles, set up automatic directory-based switching:
-
-```bash
-# One-time setup
-gh-switch auto ~/work work-profile
-gh-switch auto ~/personal personal-profile
-
-# That's it! Git now automatically uses the right profile.
-# No need to run gh-switch switch ever again in these directories.
-```
-
-**How it works:** Creates `.gitconfig-{profile}` files and adds `includeIf` directives to your global `.gitconfig`. Git automatically loads the correct configuration based on your repository location.
-
-### Key Features Demo
-
-```bash
-# Auto SSH key management with SSH config
-$ gh-switch --auto-ssh switch work
-Switched to profile 'work' with email 'john@company.com' and name 'John Doe'
-  Git identity only. Remote URLs need the SSH host alias (git@<host>:owner/repo.git).
-
-Added SSH config entry for profile 'work'
-Use this host in git URLs: git@github.com-work:user/repo.git
-Adding SSH key to macOS keychain...
-Successfully added SSH key for profile 'work' to keychain
-```
-
-### How SSH Multi-Account Support Works
-
-**Why host aliases?** SSH can't distinguish between multiple keys for the same host. Without aliases, SSH tries keys in order and GitHub accepts whichever matches first—potentially authenticating you with the wrong account.
-
-When using `--auto-ssh`, the tool automatically:
-
-1. **Creates SSH config entries** in `~/.ssh/config` with unique host aliases
-2. **Adds SSH keys to the agent** (without removing other keys)
-3. **Uses `IdentitiesOnly yes`** to ensure GitHub uses the correct key per profile
-
-**Example SSH config entries created:**
-```ssh
-Host github.com-work
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/id_work
-    IdentitiesOnly yes
-
-Host github.com-personal
-    HostName github.com
-    User git
-    IdentityFile ~/.ssh/id_personal
-    IdentitiesOnly yes
-```
-
-**Using the host aliases in your git repos:**
-```bash
-# Clone using profile-specific host
-git clone git@github.com-work:company/repo.git
-
-# Update existing repo's remote
-git remote set-url origin git@github.com-personal:user/repo.git
-```
-
-This approach allows multiple GitHub SSH keys to coexist peacefully, with SSH automatically selecting the correct key based on the host alias you use.
-
-## 🛠️ Requirements
-
-**Runtime Requirements:**
-
-- Git 2.23.0+ (for includeIf support)
-- SSH (for key-based authentication)
-- GPG (optional, for commit signing)
-
-**Build Requirements (if building from source):**
-
-- Go 1.21+
-- Make (optional, but recommended)
-
-## 📖 Documentation
-
-- **[Complete Command Reference](docs/commands.md)** - All commands and examples
-- **[Use Cases](docs/use-cases.md)** - Team setups, freelancing, organizations
-- **[Security Features](docs/security.md)** - GPG signing, SSH keys, best practices
-- **[Installation Guide](docs/installation.md)** - Platform-specific instructions
-- **[Advanced Features](docs/advanced-features.md)** - Directory rules, automation
-- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
-
-## 🏗️ Development
-
-### Building
-
-```bash
-# Build for current platform
-make build
-
-# Build for all platforms
-make build-all
-
-# Run tests
-make test
-
-# Format code
-make fmt
-
-# Show all available commands
-make help
-```
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-### Development Setup
+Or build from source:
 
 ```bash
 git clone https://github.com/calghar/gh-account-switcher.git
 cd gh-account-switcher
-make deps
-make build
-./gh-switch --help
+make install   # builds ./gh-switch and copies it to ~/bin
 ```
 
-## 📄 License
+## Quick start
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```bash
+# 1. Add profiles
+gh-switch add work john.doe@company.com "John Doe" ABC123DEF456
+gh-switch add personal john@gmail.com "Johnny Smith"
 
-## 🆘 Support
+# 2. Map directories to profiles
+gh-switch auto ~/projects/work work
+gh-switch auto ~/projects/personal personal
 
-- **Issues**: [GitHub Issues](https://github.com/calghar/gh-account-switcher/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/calghar/gh-account-switcher/discussions)
-- **Documentation**: [Complete Docs](docs/)
+# 3. Check the result
+gh-switch current
+```
+
+Git now loads the right identity for each repository. No further switching is needed.
+
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `add <name> <email> [git-name] [gpg-key]` | Create a profile |
+| `add-email <profile> <email>` | Add an email to a profile |
+| `remove-email <profile> <email>` | Remove an email from a profile |
+| `list-emails <profile>` | List a profile's emails |
+| `auto <directory> <profile>` | Map a directory to a profile |
+| `auto-list` | List directory mappings |
+| `auto-remove <directory>` | Remove a directory mapping |
+| `switch <profile> [email]` | Set the global Git identity |
+| `list` | List profiles |
+| `current` | Show the active Git identity |
+| `remove <profile>` | Delete a profile |
+| `export [file]` | Export profiles to JSON |
+| `import <file>` | Import profiles from JSON |
+
+Global flags: `-s, --auto-ssh` loads the SSH key into the agent or keychain. `-y, --yes` skips prompts.
+
+## How it works
+
+- `auto` writes `~/.gitconfig-<profile>` and adds an `includeIf "gitdir:<dir>/"` entry to `~/.gitconfig`.
+- Git reads that entry for any repository under the directory.
+- `switch` changes only the global identity. It does not change remote URLs.
+
+## SSH setup for multiple accounts
+
+Git identity and SSH authentication are separate. Each profile needs its own SSH key and host alias.
+
+With `--auto-ssh`, the tool:
+
+1. Adds a `Host github.com-<profile>` entry to `~/.ssh/config`, with its own `IdentityFile` and `IdentitiesOnly yes`.
+2. Adds the profile's key to the SSH agent or keychain.
+
+Clone or set remotes with the alias:
+
+```bash
+git clone git@github.com-work:company/repo.git
+git remote set-url origin git@github.com-personal:user/repo.git
+```
+
+HTTPS remotes use the credential helper's login, not the profile. Use the SSH alias for each profile's repositories.
+
+## Requirements
+
+- Git 2.23 or later (for `includeIf`)
+- SSH client
+- GPG, optional, for commit signing
+
+## Documentation
+
+- [Command reference](docs/commands.md)
+- [User guide](docs/user-guide.md)
+- [Use cases](docs/use-cases.md)
+- [Installation](docs/installation.md)
+- [Security](docs/security.md)
+
+## Development
+
+```bash
+make build    # build ./gh-switch
+make test     # run tests with the race detector
+make lint     # run golangci-lint
+make fmt      # format
+make help     # list targets
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

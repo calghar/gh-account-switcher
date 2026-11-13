@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/calghar/gh-account-switcher/internal/config"
 	"github.com/calghar/gh-account-switcher/internal/git"
@@ -58,17 +59,10 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 	// If specific email is provided, verify it exists in profile
 	emailToUse := profile.PrimaryEmail
 	if specificEmail != "" {
-		found := false
-		for _, email := range profile.Emails {
-			if email == specificEmail {
-				emailToUse = specificEmail
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(profile.Emails, specificEmail) {
 			return fmt.Errorf("email '%s' not found in profile '%s'", specificEmail, profileName)
 		}
+		emailToUse = specificEmail
 	}
 
 	// Setup Git configuration

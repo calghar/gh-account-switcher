@@ -33,25 +33,25 @@ func (gm *ConfigManager) SetupProfile(profile *config.Profile, directoryPath str
 	profileConfigPath := filepath.Join(gm.homeDir, fmt.Sprintf(".gitconfig-%s", profile.Name))
 
 	var configContent strings.Builder
-	configContent.WriteString(fmt.Sprintf("# Git configuration for profile: %s\n", profile.Name))
-	configContent.WriteString(fmt.Sprintf("[user]\n"))
-	configContent.WriteString(fmt.Sprintf("\temail = %s\n", profile.PrimaryEmail))
+	fmt.Fprintf(&configContent, "# Git configuration for profile: %s\n", profile.Name)
+	configContent.WriteString("[user]\n")
+	fmt.Fprintf(&configContent, "\temail = %s\n", profile.PrimaryEmail)
 
 	if profile.GitName != "" {
-		configContent.WriteString(fmt.Sprintf("\tname = %s\n", profile.GitName))
+		fmt.Fprintf(&configContent, "\tname = %s\n", profile.GitName)
 	}
 
 	// GPG signing configuration
 	if profile.GPGKey != "" {
-		configContent.WriteString(fmt.Sprintf("\tsigningkey = %s\n", profile.GPGKey))
-		configContent.WriteString(fmt.Sprintf("[commit]\n"))
-		configContent.WriteString(fmt.Sprintf("\tgpgsign = true\n"))
+		fmt.Fprintf(&configContent, "\tsigningkey = %s\n", profile.GPGKey)
+		configContent.WriteString("[commit]\n")
+		configContent.WriteString("\tgpgsign = true\n")
 	}
 
 	// SSH command configuration (if SSH key path is specified)
 	if profile.SSHKeyPath != "" {
-		configContent.WriteString(fmt.Sprintf("[core]\n"))
-		configContent.WriteString(fmt.Sprintf("\tsshCommand = ssh -i %s -o IdentitiesOnly=yes\n", profile.SSHKeyPath))
+		configContent.WriteString("[core]\n")
+		fmt.Fprintf(&configContent, "\tsshCommand = ssh -i %s -o IdentitiesOnly=yes\n", profile.SSHKeyPath)
 	}
 
 	// Write profile-specific config

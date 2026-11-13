@@ -73,10 +73,13 @@ Host %s
 	if err != nil {
 		return fmt.Errorf("failed to open SSH config: %w", err)
 	}
-	defer file.Close()
-
 	if _, err := file.WriteString(entry); err != nil {
+		_ = file.Close()
 		return fmt.Errorf("failed to write SSH config entry: %w", err)
+	}
+
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("failed to close SSH config: %w", err)
 	}
 
 	return nil
@@ -88,7 +91,7 @@ func (sm *ConfigManager) entryExists(hostAlias string) bool {
 	if err != nil {
 		return false
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -112,7 +115,7 @@ func (sm *ConfigManager) RemoveProfileEntry(profileName string) error {
 		}
 		return fmt.Errorf("failed to open SSH config: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var newLines []string
 	scanner := bufio.NewScanner(file)

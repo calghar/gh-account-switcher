@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strings"
 )
 
 // Profile represents a GitHub account profile
@@ -148,14 +150,7 @@ func (c *Config) AddProfile(profile *Profile) error {
 	}
 
 	// Ensure emails list contains primary email
-	found := false
-	for _, email := range profile.Emails {
-		if email == profile.PrimaryEmail {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.Contains(profile.Emails, profile.PrimaryEmail) {
 		profile.Emails = append([]string{profile.PrimaryEmail}, profile.Emails...)
 	}
 
@@ -209,10 +204,8 @@ func (c *Config) AddEmail(profileName, email string) error {
 	}
 
 	// Check if email already exists
-	for _, e := range profile.Emails {
-		if e == email {
-			return fmt.Errorf("email '%s' already exists in profile '%s'", email, profileName)
-		}
+	if slices.Contains(profile.Emails, email) {
+		return fmt.Errorf("email '%s' already exists in profile '%s'", email, profileName)
 	}
 
 	profile.Emails = append(profile.Emails, email)
@@ -321,7 +314,9 @@ func (c *Config) GetProfileForDirectory(dir string) (string, error) {
 	bestLength := 0
 
 	for _, rule := range c.DirectoryRules {
-		if len(rule.Path) > bestLength && filepath.HasPrefix(absDir, rule.Path) {
+		rel, err := filepath.Rel(rule.Path, absDir)
+		within := err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+		if len(rule.Path) > bestLength && within {
 			bestMatch = rule.Profile
 			bestLength = len(rule.Path)
 		}

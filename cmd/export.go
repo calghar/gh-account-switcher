@@ -102,7 +102,7 @@ func runImport(cmd *cobra.Command, args []string) error {
 			if !skipPrompts {
 				fmt.Printf("Profile '%s' already exists. Overwrite? (y/N): ", name)
 				var response string
-				fmt.Scanln(&response)
+				_, _ = fmt.Scanln(&response) // empty or failed input leaves response "" and skips
 				if strings.ToLower(response) != "y" {
 					fmt.Printf("  Skipped: %s\n", name)
 					continue
